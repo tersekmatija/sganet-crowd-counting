@@ -326,66 +326,68 @@ def test_model(model,optimizer,phase):
     return pred,mae,mse,mre
 
 #####################################################################
-# set parameters here
-seg_loss = True
-cl_loss = True
-test_step = 1
-batch_size = 6
-num_workers = 4
-patch_size = 128
-num_patches_per_image = 4
-data_dir = './data/part_B_final/'
+if __name__ == '__main__':    
 
-# define data set
-image_datasets = {x: ShanghaiTechDataset(data_dir+x+'_data', 
-                        phase=x, 
-                        transform=data_transforms[x],
-                        patch_size=patch_size,
-                        num_patches_per_image=num_patches_per_image)
-                    for x in ['train','test']}
-image_datasets['val'] = ShanghaiTechDataset(data_dir+'train_data',
-                            phase='val',
-                            transform=data_transforms['val'],
+    # set parameters here
+    seg_loss = True
+    cl_loss = True
+    test_step = 1
+    batch_size = 6
+    num_workers = 4
+    patch_size = 128
+    num_patches_per_image = 4
+    data_dir = './data/ShanghaiA/'
+
+    # define data set
+    image_datasets = {x: ShanghaiTechDataset(data_dir+x+'_data', 
+                            phase=x, 
+                            transform=data_transforms[x],
                             patch_size=patch_size,
                             num_patches_per_image=num_patches_per_image)
-## split the data into train/validation/test subsets
-indices = list(range(len(image_datasets['train'])))
-split = np.int(len(image_datasets['train'])*0.2)
+                        for x in ['train','test']}
+    image_datasets['val'] = ShanghaiTechDataset(data_dir+'train_data',
+                                phase='val',
+                                transform=data_transforms['val'],
+                                patch_size=patch_size,
+                                num_patches_per_image=num_patches_per_image)
+    ## split the data into train/validation/test subsets
+    indices = list(range(len(image_datasets['train'])))
+    split = np.int(len(image_datasets['train'])*0.2)
 
-val_idx = np.random.choice(indices, size=split, replace=False)
-train_idx = indices#list(set(indices)-set(val_idx))
-test_idx = range(len(image_datasets['test']))
+    val_idx = np.random.choice(indices, size=split, replace=False)
+    train_idx = indices#list(set(indices)-set(val_idx))
+    test_idx = range(len(image_datasets['test']))
 
-train_sampler = SubsetRandomSampler(train_idx)
-val_sampler = SubsetRandomSampler(val_idx)
-test_sampler = SubsetSampler(test_idx)
+    train_sampler = SubsetRandomSampler(train_idx)
+    val_sampler = SubsetRandomSampler(val_idx)
+    test_sampler = SubsetSampler(test_idx)
 
-train_loader = torch.utils.data.DataLoader(dataset=image_datasets['train'],batch_size=batch_size,sampler=train_sampler, num_workers=num_workers)
-val_loader = torch.utils.data.DataLoader(dataset=image_datasets['val'],batch_size=1,sampler=val_sampler, num_workers=num_workers)
-test_loader = torch.utils.data.DataLoader(dataset=image_datasets['test'],batch_size=1,sampler=test_sampler, num_workers=num_workers)
+    train_loader = torch.utils.data.DataLoader(dataset=image_datasets['train'],batch_size=batch_size,sampler=train_sampler, num_workers=num_workers)
+    val_loader = torch.utils.data.DataLoader(dataset=image_datasets['val'],batch_size=1,sampler=val_sampler, num_workers=num_workers)
+    test_loader = torch.utils.data.DataLoader(dataset=image_datasets['test'],batch_size=1,sampler=test_sampler, num_workers=num_workers)
 
-dataset_sizes = {'train':len(train_idx),'val':len(val_idx),'test':len(image_datasets['test'])}
-dataloaders = {'train':train_loader,'val':val_loader,'test':test_loader}
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    dataset_sizes = {'train':len(train_idx),'val':len(val_idx),'test':len(image_datasets['test'])}
+    dataloaders = {'train':train_loader,'val':val_loader,'test':test_loader}
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-########################################################################
-# define models and training
-model = headCount_inceptionv3(pretrained=True)
-# model = MCNN()
-# model = SANet()
-# model = TEDNet(use_bn=True)
-model = model.to(device)
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
+    ########################################################################
+    # define models and training
+    model = headCount_inceptionv3(pretrained=True)
+    # model = MCNN()
+    # model = SANet()
+    # model = TEDNet(use_bn=True)
+    model = model.to(device)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.5)
 
-model = train_model(model, optimizer, exp_lr_scheduler,
-                    num_epochs=501, 
-                    seg_loss=seg_loss, 
-                    cl_loss=cl_loss, 
-                    test_step=test_step)
-                    
-pred,mae,mse,mre = test_model(model,optimizer,'test')
-scipy.io.savemat('./results.mat', mdict={'pred': pred, 'mse': mse, 'mae': mae,'mre': mre})
-model_dir = './'
-torch.save(model.state_dict(), model_dir+'saved_model.pt')
+    model = train_model(model, optimizer, exp_lr_scheduler,
+                        num_epochs=501, 
+                        seg_loss=seg_loss, 
+                        cl_loss=cl_loss, 
+                        test_step=test_step)
+                        
+    pred,mae,mse,mre = test_model(model,optimizer,'test')
+    scipy.io.savemat('./results.mat', mdict={'pred': pred, 'mse': mse, 'mae': mae,'mre': mre})
+    model_dir = '/home/matijamasaibb/codesmatijamasa/sganet-crowd-counting/SGA_model/'
+    torch.save(model.state_dict(), model_dir+'saved_model.pt')
 
